@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Architecture Document Classifier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #f4f2ec;
+        --surface: #fffdf8;
+        --surface-2: #ece8dd;
+        --ink: #1c2420;
+        --ink-soft: #4c564f;
+        --line: #d8d2c2;
+        --teal: #0e6b5c;
+        --teal-soft: #dcebe4;
+        --amber: #9a6206;
+        --amber-soft: #f5e8cd;
+        --red: #a33327;
+        --red-soft: #f3dcd6;
+        --mark: #ffe08a;
+        --mark-ink: #4a3800;
+        --shadow: 0 1px 2px rgba(28, 36, 32, .06), 0 8px 24px rgba(28, 36, 32, .07);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #141815;
+          --surface: #1d221e;
+          --surface-2: #262b27;
+          --ink: #ece9df;
+          --ink-soft: #a9b2a9;
+          --line: #39423c;
+          --teal: #4fbfa5;
+          --teal-soft: #173b33;
+          --amber: #e0aa4e;
+          --amber-soft: #3d2f12;
+          --red: #e07a6a;
+          --red-soft: #40231e;
+          --mark: #8a6d1d;
+          --mark-ink: #ffe9ad;
+          --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.55;
+      }
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+      /* ---------- intro ---------- */
+      .intro { max-width: 760px; margin-bottom: 26px; }
+      .intro h1 {
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-weight: 600; font-size: clamp(1.7rem, 4.5vw, 2.5rem);
+        line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em;
+      }
+      .intro p { margin: 0; color: var(--ink-soft); font-size: 1.02rem; }
+      .intro p strong { color: var(--ink); font-weight: 600; }
+
+      /* ---------- pipeline strip ---------- */
+      .pipeline {
+        display: flex; flex-wrap: wrap; gap: 0; margin: 0 0 22px;
+        border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+        background: var(--surface); box-shadow: var(--shadow);
+      }
+      .step {
+        flex: 1 1 130px; display: flex; align-items: center; gap: 9px;
+        padding: 11px 13px; border-right: 1px solid var(--line);
+        font-size: .82rem; font-weight: 500; color: var(--ink-soft);
+        transition: background .3s, color .3s;
+      }
+      .step:last-child { border-right: none; }
+      .step .n {
+        font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 600;
+        width: 22px; height: 22px; flex: none; border-radius: 50%;
+        display: grid; place-items: center;
+        border: 1.5px solid var(--line); color: var(--ink-soft);
+        transition: all .3s;
+      }
+      .step.active { background: var(--teal-soft); color: var(--ink); }
+      .step.active .n { border-color: var(--teal); background: var(--teal); color: #fff; }
+      .step.done { color: var(--ink); }
+      .step.done .n { border-color: var(--teal); color: var(--teal); }
+
+      /* ---------- layout ---------- */
+      .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+      @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+      .panel {
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 12px; box-shadow: var(--shadow); padding: 20px;
+      }
+      .panel h2 {
+        font-size: .8rem; font-weight: 600; letter-spacing: .09em;
+        text-transform: uppercase; color: var(--ink-soft); margin: 0 0 14px;
+      }
+
+      /* samples */
+      .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+      .chip {
+        font: inherit; font-size: .83rem; font-weight: 500; cursor: pointer;
+        padding: 7px 12px; border-radius: 999px;
+        border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+      }
+      .chip:hover { border-color: var(--teal); }
+      .chip.selected { background: var(--teal); border-color: var(--teal); color: #fff; }
+      .chip .tag { font-family: "IBM Plex Mono", monospace; font-size: .68rem; opacity: .75; margin-left: 6px; }
+
+      textarea {
+        width: 100%; min-height: 300px; resize: vertical;
+        font-family: "IBM Plex Mono", monospace; font-size: .85rem; line-height: 1.6;
+        padding: 14px; border-radius: 8px; border: 1px solid var(--line);
+        background: var(--bg); color: var(--ink);
+      }
+      textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+      .input-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+      .wc { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--ink-soft); margin-right: auto; }
+      .file-label {
+        font-size: .83rem; font-weight: 500; cursor: pointer;
+        padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line);
+        background: var(--surface); color: var(--ink);
+      }
+      .file-label:hover { border-color: var(--teal); }
+      input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .btn {
+        font: inherit; font-weight: 600; font-size: .95rem; cursor: pointer;
+        padding: 11px 22px; border-radius: 8px; border: none;
+        background: var(--teal); color: #fff;
+      }
+      .btn:hover { filter: brightness(1.08); }
+      .btn:active { transform: translateY(1px); }
+      .btn.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+      .hint { font-size: .82rem; color: var(--ink-soft); margin: 12px 0 0; }
+
+      /* ---------- results ---------- */
+      .empty { color: var(--ink-soft); font-size: .95rem; padding: 18px 4px; }
+      .empty strong { color: var(--ink); }
+      .verdict { display: none; }
+      .verdict.show { display: block; }
+      .verdict-badge {
+        display: inline-block; font-weight: 700; font-size: 1.05rem;
+        padding: 8px 16px; border-radius: 8px; letter-spacing: .01em;
+      }
+      .verdict-badge.arch { background: var(--teal-soft); color: var(--teal); border: 1.5px solid var(--teal); }
+      .verdict-badge.non { background: var(--red-soft); color: var(--red); border: 1.5px solid var(--red); }
+      .verdict-badge.review { background: var(--amber-soft); color: var(--amber); border: 1.5px solid var(--amber); }
+      .verdict-why { margin: 12px 0 0; font-size: .95rem; color: var(--ink-soft); }
+      .verdict-why strong { color: var(--ink); }
+
+      .conf { margin: 20px 0 6px; }
+      .conf-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+      .conf-head .lbl { font-size: .8rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+      .conf-head .val { font-family: "IBM Plex Mono", monospace; font-size: 1.3rem; font-weight: 600; }
+      .conf-track { position: relative; height: 14px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--line); }
+      .conf-fill { height: 100%; border-radius: 7px 0 0 7px; background: var(--teal); width: 0; transition: width .7s ease; }
+      .conf-band {
+        position: absolute; top: -3px; bottom: -3px; left: 42%; width: 16%;
+        border-left: 1.5px dashed var(--amber); border-right: 1.5px dashed var(--amber);
+        background: color-mix(in srgb, var(--amber) 10%, transparent);
+      }
+      .conf-scale { display: flex; justify-content: space-between; font-family: "IBM Plex Mono", monospace; font-size: .68rem; color: var(--ink-soft); margin-top: 5px; }
+      .conf-note { font-size: .8rem; color: var(--amber); font-weight: 500; }
+
+      .strands { margin-top: 22px; display: grid; gap: 13px; }
+      .strand-head { display: flex; justify-content: space-between; align-items: baseline; }
+      .strand-name { font-weight: 600; font-size: .92rem; }
+      .strand-name .w { font-family: "IBM Plex Mono", monospace; font-weight: 400; font-size: .72rem; color: var(--ink-soft); margin-left: 6px; }
+      .strand-score { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: .92rem; }
+      .bar { height: 8px; border-radius: 4px; background: var(--surface-2); margin-top: 5px; overflow: hidden; }
+      .bar-fill { height: 100%; background: var(--teal); border-radius: 4px; width: 0; transition: width .7s ease; }
+      .bar-fill.low { background: var(--red); }
+      .bar-fill.mid { background: var(--amber); }
+      .strand-ev { font-size: .8rem; color: var(--ink-soft); margin-top: 4px; }
+
+      .checklist { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 8px; }
+      .checklist li { display: flex; gap: 10px; font-size: .9rem; align-items: flex-start; }
+      .ck {
+        flex: none; width: 20px; height: 20px; border-radius: 5px; margin-top: 1px;
+        display: grid; place-items: center; font-size: .75rem; font-weight: 700;
+      }
+      .ck.met { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal); }
+      .ck.miss { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
+      .checklist .why { color: var(--ink-soft); font-size: .82rem; display: block; }
+
+      .penalty {
+        margin-top: 18px; padding: 12px 14px; border-radius: 8px;
+        background: var(--red-soft); border: 1px solid var(--red);
+        font-size: .88rem; display: none;
+      }
+      .penalty.show { display: block; }
+      .penalty strong { color: var(--red); }
+
+      /* preview */
+      .preview-panel { margin-top: 20px; }
+      .preview {
+        font-size: .92rem; line-height: 1.75; white-space: pre-wrap; word-wrap: break-word;
+        max-height: 420px; overflow-y: auto; padding-right: 6px;
+      }
+      .preview mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 2px; }
+      .preview mark.intent { background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+      .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: .78rem; color: var(--ink-soft); margin-top: 12px; }
+      .legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+      .legend .l-arch::before { background: var(--mark); }
+      .legend .l-intent::before { background: var(--teal-soft); border: 1px solid var(--teal); }
+
+      /* batch */
+      .batch-panel { margin-top: 20px; }
+      .batch-table { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 14px; }
+      .batch-table th { text-align: left; font-size: .75rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); padding: 8px 10px; border-bottom: 2px solid var(--line); }
+      .batch-table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      .batch-table .score { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+      .pill { display: inline-block; font-size: .76rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+      .pill.arch { background: var(--teal-soft); color: var(--teal); }
+      .pill.non { background: var(--red-soft); color: var(--red); }
+      .pill.review { background: var(--amber-soft); color: var(--amber); }
+      .match { font-weight: 700; }
+      .match.ok { color: var(--teal); }
+      .match.no { color: var(--red); }
+      .batch-summary { font-size: .92rem; color: var(--ink-soft); margin-top: 12px; }
+      .batch-summary strong { color: var(--ink); }
+      @media (max-width: 640px) {
+        .batch-table thead { display: none; }
+        .batch-table, .batch-table tbody, .batch-table tr, .batch-table td { display: block; width: 100%; }
+        .batch-table tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+        .batch-table td { border-bottom: none; padding: 3px 10px; }
+        .batch-table td:first-child { padding-top: 0; }
+      }
+
+      footer { margin-top: 34px; font-size: .83rem; color: var(--ink-soft); max-width: 760px; }
+      footer p { margin: 0 0 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="intro">
+        <h1>Architecture Document Classifier</h1>
+        <p>Paste or load a document and this runs the proposed classification pipeline from the thesis: <strong>extract the text, score it on separate evidence strands, check it against the specification of what counts as “architectural”, then fuse the strands into one verdict</strong> — with borderline documents sent to a human reviewer instead of being guessed. Everything runs in this page; nothing is uploaded anywhere.</p>
+      </div>
+
+      <div class="pipeline" id="pipeline" aria-label="Classification pipeline steps">
+        <div class="step" data-step="0"><span class="n">1</span>Extract text</div>
+        <div class="step" data-step="1"><span class="n">2</span>Text strand</div>
+        <div class="step" data-step="2"><span class="n">3</span>Structure &amp; diagrams</div>
+        <div class="step" data-step="3"><span class="n">4</span>Specification checklist</div>
+        <div class="step" data-step="4"><span class="n">5</span>Intent signals</div>
+        <div class="step" data-step="5"><span class="n">6</span>Fuse &amp; decide</div>
+      </div>
+
+      <div class="grid">
+        <section class="panel" aria-label="Document input">
+          <h2>Document</h2>
+          <div class="samples" id="samples"></div>
+          <textarea id="docInput" spellcheck="false" aria-label="Document text"></textarea>
+          <div class="input-meta">
+            <span class="wc" id="wordCount">0 words</span>
+            <label class="file-label" for="fileInput">Load .txt / .md file</label>
+            <input type="file" id="fileInput" accept=".txt,.md,.text" />
+            <button class="btn" id="classifyBtn" type="button">Classify document</button>
+          </div>
+          <p class="hint">Try the built-in documents first — they include the hard case the thesis is built for: an API reference that <em>mentions</em> a system’s parts without <em>describing its architecture</em>. Then paste your own text.</p>
+        </section>
+
+        <section class="panel" aria-label="Classification result">
+          <h2>Result</h2>
+          <div class="empty" id="emptyState">
+            <p><strong>No classification yet.</strong></p>
+            <p>Pick a sample document or paste your own text, then choose <strong>Classify document</strong>. The verdict will show which evidence strands fired, which specification items were met, and the exact words that drove the decision.</p>
+          </div>
+          <div class="verdict" id="verdictBox">
+            <span class="verdict-badge" id="verdictBadge"></span>
+            <p class="verdict-why" id="verdictWhy"></p>
+
+            <div class="conf">
+              <div class="conf-head">
+                <span class="lbl">Fused confidence score</span>
+                <span class="val" id="confVal">0</span>
+              </div>
+              <div class="conf-track">
+                <div class="conf-band" title="Human review band: 42–58"></div>
+                <div class="conf-fill" id="confFill"></div>
+              </div>
+              <div class="conf-scale"><span>0 · non-architectural</span><span class="conf-note">dashed band 42–58 = human review</span><span>architectural · 100</span></div>
+            </div>
+
+            <div class="strands" id="strands"></div>
+
+            <ul class="checklist" id="checklist"></ul>
+
+            <div class="penalty" id="penaltyBox"></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel preview-panel" id="previewPanel" style="display:none" aria-label="Evidence in the document">
+        <h2>Evidence in the document</h2>
+        <div class="preview" id="preview"></div>
+        <div class="legend">
+          <span class="l-arch">Architecture evidence — terms and phrases the text &amp; checklist strands scored</span>
+          <span class="l-intent">Commitment signals — decisions, rationale, rejected alternatives</span>
+        </div>
+      </section>
+
+      <section class="panel batch-panel" aria-label="Demo document set">
+        <h2>Run the demo set</h2>
+        <p style="margin:0; font-size:.92rem; color:var(--ink-soft)">Classifies all five built-in documents at once and compares the verdict with the label each document was written to have — the same predicted-vs-expected check the thesis plans for its evaluation, in miniature.</p>
+        <div class="input-meta">
+          <button class="btn secondary" id="batchBtn" type="button">Classify all 5 demo documents</button>
+        </div>
+        <div id="batchOut"></div>
+      </section>
+
+      <footer>
+        <p><strong>How the scoring works.</strong> Four strands are scored 0–100: text (weighted architecture vocabulary, TF-IDF-style), structure &amp; diagrams (headings, component lists, tables, diagram references), the specification checklist (six items defining “architectural”), and intent (commitment signals — decisions actually made, not topics merely mentioned). The fused score weights them 35 / 20 / 30 / 15. API-reference signals (parameter lists, return types, method signatures) subtract up to 25 points, because a document can mention every component and still not describe an architecture.</p>
+        <p>This is a working demonstration of the design proposed in the software-architecture classification thesis — a rule-based stand-in for the planned TF-IDF + hybrid classifier, built so the pipeline, thresholds, and review band can be tried by hand. It is not the trained model, and its scores are not evaluation results.</p>
+      </footer>
+    </div>
+
+    <script>
+    (function () {
+      "use strict";
+
+      /* ================= Sample documents ================= */
+      var SAMPLES = [
+        {
+          id: "kafka",
+          name: "Kafka architecture guide",
+          tag: "demo",
+          expected: "arch",
+          text:
+"Kafka Architecture: How the System Is Put Together\n\n" +
+"Apache Kafka's architecture is a distributed, replicated log. The system consists of three layers: a data plane of brokers, a control plane that manages the cluster, and an ecosystem layer of connectors and stream processors.\n\n" +
+"Components and how they relate\n" +
+"- Broker: a server that stores partitions and serves reads and writes. Brokers form the cluster.\n" +
+"- Topic: a logical category of messages, divided into partitions.\n" +
+"- Partition: an ordered, append-only log. Each partition is replicated to several brokers as one leader and its followers, so data survives a broker failure.\n" +
+"- Producer: a client that publishes records to a topic.\n" +
+"- Consumer group: a set of consumers that share the work of reading partitions.\n" +
+"- KRaft controller: the control-plane component that tracks partition leadership and handles broker failures. It replaces ZooKeeper, which earlier versions depended on.\n\n" +
+"The diagram below shows how these components relate: producers write to the leader partition on a broker, followers replicate it, and consumers read from the leader.\n\n" +
+"Key design decisions\n" +
+"The central decision is the log itself: because every record is appended to a durable log, consumers can replay history instead of receiving each message exactly once. We chose replication with acks=all as the default rather than faster fire-and-forget writes, because durability matters more than raw write latency for the intended use.\n\n" +
+"Trade-offs\n" +
+"Partition count is a durable decision: you can increase it after creation, but you cannot decrease it, and increasing it can break ordering guarantees. More partitions raise throughput and parallelism, but each partition costs memory and file handles on every broker, so scalability is traded against resource use. The architecture favours availability and fault tolerance: the system stays up and keeps serving reads when a broker fails, at the cost of brief unavailability of the affected partitions while a new leader is elected."
+        },
+        {
+          id: "adr",
+          name: "Architecture decision record",
+          tag: "demo",
+          expected: "arch",
+          text:
+"ADR 014: Store session data in Redis instead of the relational database\n\n" +
+"Status: Accepted\n\n" +
+"Context\n" +
+"Our checkout service is a three-tier system: a web tier, an application service layer, and a database tier. Session lookups happen on every request, and the database tier has become the bottleneck. Latency on session reads is hurting the checkout flow, and the monolith's structure gives us no way to scale reads for sessions alone.\n\n" +
+"Decision\n" +
+"We decided to move session storage to a dedicated Redis cluster, deployed as a separate component beside the application tier. We chose Redis over Memcached because we need persistence and richer data structures, and we rejected a second relational schema because it would keep the scaling problem we are trying to remove.\n\n" +
+"Consequences\n" +
+"Session reads become much faster and the database tier is relieved, improving overall throughput. The trade-off is operational: we now run and monitor one more component, and we accept weaker consistency for session data in exchange for availability. If Redis fails, users are logged out but no order data is lost."
+        },
+        {
+          id: "api",
+          name: "Producer API reference",
+          tag: "close negative",
+          expected: "non",
+          text:
+"KafkaProducer API Reference\n\n" +
+"public class KafkaProducer<K, V> implements Producer<K, V>\n\n" +
+"send(ProducerRecord<K, V> record)\n" +
+"Asynchronously sends a record to a topic.\n" +
+"Parameters: record — the record to send, containing the topic, key, and value.\n" +
+"Returns: a Future of RecordMetadata giving the partition and offset of the stored record.\n" +
+"Throws: SerializationException if the key or value serializer fails.\n\n" +
+"send(ProducerRecord<K, V> record, Callback callback)\n" +
+"Asynchronously sends a record and registers a callback for the result.\n" +
+"Parameters: record — the record to send. callback — invoked on completion or error.\n" +
+"Returns: a Future of RecordMetadata.\n\n" +
+"partitionsFor(String topic)\n" +
+"Returns: a List of PartitionInfo for the given topic.\n\n" +
+"flush()\n" +
+"Makes all buffered records immediately available to send. Returns: void.\n\n" +
+"close()\n" +
+"Closes this producer and releases its resources. This method blocks until all previously sent requests complete. Throws: InterruptException if interrupted while blocking.\n\n" +
+"Example:\n" +
+"Producer<String, String> producer = new KafkaProducer<>(props);\n" +
+"producer.send(new ProducerRecord<>(\"orders\", \"key\", \"value\"));"
+        },
+        {
+          id: "install",
+          name: "Installation guide",
+          tag: "demo",
+          expected: "non",
+          text:
+"Installing OrderDesk 2.4\n\n" +
+"System requirements\n" +
+"- Windows 10 or later (64-bit), or macOS 12 or later\n" +
+"- 4 GB of RAM (8 GB recommended)\n" +
+"- 500 MB of free disk space\n" +
+"- An internet connection for activation\n\n" +
+"Steps\n" +
+"1. Download the installer from the downloads page.\n" +
+"2. Double-click OrderDesk-Setup.exe and follow the wizard.\n" +
+"3. When prompted, enter the licence key from your confirmation email.\n" +
+"4. Click Finish, then start OrderDesk from the Start menu.\n\n" +
+"Troubleshooting\n" +
+"If the installer reports error 1603, right-click the installer and choose Run as administrator. If the application will not start, delete the file settings.ini in the AppData folder and restart. For further help, contact support with your licence key and the contents of the log file."
+        },
+        {
+          id: "release",
+          name: "Release notes v3.2",
+          tag: "demo",
+          expected: "non",
+          text:
+"OrderDesk 3.2 — Release Notes\n\n" +
+"New features\n" +
+"- You can now export invoices as PDF from the invoice screen.\n" +
+"- Added a dark mode option under Settings, Appearance.\n" +
+"- Search now matches partial order numbers.\n\n" +
+"Improvements\n" +
+"- The customer list loads faster on large accounts.\n" +
+"- Keyboard shortcut Ctrl+E now opens the export dialog.\n\n" +
+"Bug fixes\n" +
+"- Fixed a crash when printing an invoice with no line items.\n" +
+"- Fixed totals being rounded down on orders with more than 100 items.\n" +
+"- The save button is no longer disabled after a failed import.\n\n" +
+"Known issues\n" +
+"On macOS, the export dialog may appear behind the main window. We are working on a fix for 3.2.1."
+        }
+      ];
+
+      /* ================= Lexicons ================= */
+      // Each entry: [phrase, weight]. Matched case-insensitively on word boundaries.
+      var TEXT_TERMS = [
+        ["architecture", 3], ["architectural", 3], ["system design", 3],
+        ["component", 2], ["components", 2], ["subsystem", 2], ["module", 1],
+        ["layer", 2], ["layers", 2], ["tier", 2], ["tiers", 2],
+        ["deployment", 2], ["topology", 2], ["data flow", 2],
+        ["distributed", 2], ["cluster", 1], ["interface", 1], ["interfaces", 1],
+        ["coupling", 2], ["service", 1], ["services", 1], ["server", 1],
+        ["structure", 1], ["monolith", 2], ["microservices", 3],
+        ["scalability", 2], ["scalable", 2], ["availability", 2],
+        ["reliability", 2], ["throughput", 2], ["latency", 1],
+        ["fault tolerance", 3], ["fault-tolerant", 3], ["durability", 2],
+        ["consistency", 1], ["resilience", 2], ["maintainability", 2],
+        ["replicated", 1], ["replication", 1], ["partition", 1], ["partitions", 1]
+      ];
+      var INTENT_TERMS = [
+        ["we decided", 3], ["we chose", 3], ["decision", 2], ["decisions", 2],
+        ["rationale", 3], ["trade-off", 3], ["tradeoff", 3], ["trade-offs", 3],
+        ["instead of", 2], ["rather than", 2], ["rejected", 2], ["replaces", 2],
+        ["in exchange for", 2], ["at the cost of", 2], ["because", 1],
+        ["so that", 1], ["alternative", 1], ["alternatives", 1],
+        ["status: accepted", 2], ["consequences", 2]
+      ];
+      var DIAGRAM_TERMS = [
+        ["diagram", 3], ["figure", 2], ["uml", 3], ["class diagram", 3],
+        ["sequence diagram", 3], ["shown below", 1], ["illustrates", 1],
+        ["flowchart", 2]
+      ];
+      var QUALITY_TERMS = ["scalability", "scalable", "availability", "reliability",
+        "throughput", "fault tolerance", "fault-tolerant", "durability",
+        "resilience", "maintainability", "latency", "consistency"];
+
+      /* ================= Helpers ================= */
+      function esc(s) {
+        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+      function countPhrase(text, phrase) {
+        var p = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/-/g, "[-\\s]");
+        var re = new RegExp("(^|[^a-z])(" + p + ")(?![a-z])", "gi");
+        var m, n = 0;
+        while ((m = re.exec(text)) !== null) { n++; }
+        return n;
+      }
+      function weightedHits(text, lexicon) {
+        var total = 0, found = [];
+        for (var i = 0; i < lexicon.length; i++) {
+          var c = countPhrase(text, lexicon[i][0]);
+          if (c > 0) { total += c * lexicon[i][1]; found.push({ term: lexicon[i][0], count: c }); }
+        }
+        found.sort(function (a, b) { return b.count - a.count; });
+        return { total: total, found: found };
+      }
+      function saturate(raw, k) { // 0..100 saturating score
+        if (raw <= 0) return 0;
+        return Math.round(100 * raw / (raw + k));
+      }
+      function firstMatchLine(text, re) {
+        var lines = text.split("\n");
+        for (var i = 0; i < lines.length; i++) {
+          if (re.test(lines[i])) return lines[i].trim().slice(0, 110);
+        }
+        return null;
+      }
+
+      /* ================= The classifier ================= */
+      function classify(rawText) {
+        var text = rawText || "";
+        var lower = text.toLowerCase();
+        var words = (text.match(/[A-Za-z0-9''-]+/g) || []).length;
+        var lines = text.split("\n");
+
+        /* --- Strand 1: text --- */
+        var th = weightedHits(lower, TEXT_TERMS);
+        // density-aware: longer documents need proportionally more evidence
+        var densityK = 10 + Math.max(0, (words - 150)) / 60;
+        var textScore = saturate(th.total, densityK);
+
+        /* --- Strand 2: structure & diagrams --- */
+        var structPoints = 0, structEvidence = [];
+        var headings = lines.filter(function (l) {
+          var t = l.trim();
+          return t.length > 2 && t.length < 70 && !/[.!?]$/.test(t) &&
+                 (/^[A-Z0-9]/.test(t)) && (/:$/.test(t) || !/^(the|a|an|if|when)\b/i.test(t)) &&
+                 (words > 0) && (t.split(/\s+/).length <= 8);
+        }).length;
+        var realHeadings = lines.filter(function (l) {
+          return /^#{1,6}\s/.test(l.trim()) ||
+                 (/^[A-Z][A-Za-z0-9 ,:''&\/-]{2,60}$/.test(l.trim()) && l === l.trim() && text.indexOf("\n" + l) >= 0 && !/[.!?]$/.test(l.trim()));
+        }).length;
+        var headingCount = Math.max(realHeadings, Math.min(headings, 8));
+        if (headingCount >= 2) { structPoints += 2; structEvidence.push(headingCount + " section headings"); }
+        else if (headingCount === 1) { structPoints += 1; structEvidence.push("1 section heading"); }
+        var listItems = lines.filter(function (l) { return /^\s*([-*•]|\d+[.)])\s+\S/.test(l); }).length;
+        if (listItems >= 3) { structPoints += 2; structEvidence.push(listItems + " list items (component or step enumerations)"); }
+        else if (listItems > 0) { structPoints += 1; structEvidence.push(listItems + " list items"); }
+        var colonDefs = lines.filter(function (l) { return /^\s*[-*•]?\s*[A-Z][\w ()\/-]{1,40}:\s+\S/.test(l); }).length;
+        if (colonDefs >= 3) { structPoints += 2; structEvidence.push(colonDefs + " term: definition lines"); }
+        var dh = weightedHits(lower, DIAGRAM_TERMS);
+        if (dh.total >= 3) { structPoints += 3; structEvidence.push("diagram reference: “" + dh.found[0].term + "”"); }
+        else if (dh.total > 0) { structPoints += 1; structEvidence.push("mentions “" + dh.found[0].term + "”"); }
+        var structScore = saturate(structPoints, 4);
+
+        /* --- Strand 4 (computed early): intent --- */
+        var ih = weightedHits(lower, INTENT_TERMS);
+        var intentScore = saturate(ih.total, 7);
+
+        /* --- Strand 3: specification checklist --- */
+        var qHits = 0;
+        for (var q = 0; q < QUALITY_TERMS.length; q++) qHits += countPhrase(lower, QUALITY_TERMS[q]);
+        var componentMentions = countPhrase(lower, "component") + countPhrase(lower, "components") +
+          countPhrase(lower, "layer") + countPhrase(lower, "layers") + countPhrase(lower, "tier") + countPhrase(lower, "tiers");
+        var relationLine = firstMatchLine(text, /relate|connect|communicat|interact|depend|managed by|shared|share the work|reads from|writes to|publishes|serves/i);
+        var checklist = [
+          {
+            label: "Describes the system’s structure",
+            met: /consists of|composed of|divided into|split into|made up of|layers?|tiers?|structure/i.test(text),
+            why: firstMatchLine(text, /consists of|composed of|divided into|split into|layers?|tiers?/i) || "No statement of how the system is divided or layered was found."
+          },
+          {
+            label: "Names components and how they relate",
+            met: componentMentions >= 2 && !!relationLine,
+            why: relationLine ? "“" + relationLine + "”" : "Components or their relationships are not spelled out."
+          },
+          {
+            label: "States design decisions",
+            met: /decision|decided|we chose|we choose|adopted/i.test(text),
+            why: firstMatchLine(text, /decision|decided|we chose|adopted/i) || "No decision is stated — the text informs or instructs, but does not decide."
+          },
+          {
+            label: "Gives rationale for the decisions",
+            met: /because|rationale|in order to|so that|the reason/i.test(text),
+            why: firstMatchLine(text, /because|rationale|in order to|so that/i) || "No reasoning (“because…”, “so that…”) was found."
+          },
+          {
+            label: "Discusses trade-offs or alternatives",
+            met: /trade-off|tradeoff|instead of|rather than|rejected|alternative|at the cost of|in exchange for/i.test(text),
+            why: firstMatchLine(text, /trade-off|tradeoff|instead of|rather than|rejected|alternative/i) || "No alternative is weighed and nothing is given up for anything else."
+          },
+          {
+            label: "Addresses quality attributes",
+            met: qHits >= 2,
+            why: qHits >= 2 ? qHits + " mentions of qualities such as scalability, availability, throughput or fault tolerance."
+                             : "Qualities like scalability, availability or throughput are barely mentioned."
+          }
+        ];
+        var metCount = checklist.filter(function (c) { return c.met; }).length;
+        var checklistScore = Math.round(100 * metCount / checklist.length);
+
+        /* --- Close-negative penalty: API-reference signals --- */
+        var apiSignals = 0, apiEvidence = [];
+        var params = (text.match(/\bParameters\s*:/gi) || []).length;
+        var returns = (text.match(/\bReturns\s*:/gi) || []).length;
+        var throwsC = (text.match(/\bThrows\s*:/gi) || []).length;
+        var signatures = (text.match(/\b(public|private|void|static)\s+[\w<>\[\]]+\s*\(|[\w.]+\([^)\n]{0,60}\)\s*[{;]?\s*$/gm) || []).length;
+        apiSignals = params * 2 + returns * 2 + throwsC * 2 + signatures * 2;
+        if (params) apiEvidence.push(params + "× “Parameters:”");
+        if (returns) apiEvidence.push(returns + "× “Returns:”");
+        if (throwsC) apiEvidence.push(throwsC + "× “Throws:”");
+        if (signatures) apiEvidence.push(signatures + " method signature(s)");
+        var penalty = Math.min(25, apiSignals * 3);
+
+        /* --- Fusion --- */
+        var fused = Math.round(0.35 * textScore + 0.20 * structScore + 0.30 * checklistScore + 0.15 * intentScore - penalty);
+        fused = Math.max(0, Math.min(100, fused));
+
+        var verdict, why;
+        var disagreement = (textScore >= 65 && checklistScore <= 34);
+        if (fused >= 58) {
+          verdict = "arch";
+          why = "The strands agree: architecture vocabulary is dense, the specification checklist is largely met, and the document commits to decisions rather than only naming parts.";
+        } else if (fused <= 42) {
+          verdict = "non";
+          why = penalty >= 9
+            ? "This reads as a reference for using the system, not a description of its architecture: API-reference signals dominate and the specification checklist is mostly unmet."
+            : "The specification checklist is mostly unmet and the architecture evidence is thin — the document may mention a system, but it does not describe how the system is designed.";
+        } else {
+          verdict = "review";
+          why = "The evidence is mixed, so the pipeline does not guess: this document falls in the review band and goes to a human reviewer.";
+        }
+        if (disagreement && verdict === "arch") {
+          verdict = "review";
+          why = "The document talks about architecture (strong text strand) but meets few specification items — the classic close-negative pattern. Routed to a human reviewer instead of being labelled.";
+        }
+        if (words < 25) {
+          verdict = "review";
+          why = "The document is very short (" + words + " words) — too little text for the strands to separate topic mentions from real architectural content. Routed to a human reviewer.";
+        }
+
+        return {
+          words: words,
+          textScore: textScore, structScore: structScore,
+          checklistScore: checklistScore, intentScore: intentScore,
+          textFound: th.found.slice(0, 6), structEvidence: structEvidence,
+          intentFound: ih.found.slice(0, 5),
+          checklist: checklist, metCount: metCount,
+          penalty: penalty, apiEvidence: apiEvidence,
+          fused: fused, verdict: verdict, why: why
+        };
+      }
+
+      /* ================= UI ================= */
+      var $ = function (id) { return document.getElementById(id); };
+      var input = $("docInput"), samplesBox = $("samples");
+      var selectedSample = null;
+
+      SAMPLES.forEach(function (s) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.dataset.id = s.id;
+        b.innerHTML = esc(s.name) + '<span class="tag">' + esc(s.tag) + "</span>";
+        b.addEventListener("click", function () { loadSample(s.id); });
+        samplesBox.appendChild(b);
+      });
+
+      function loadSample(id) {
+        var s = SAMPLES.filter(function (x) { return x.id === id; })[0];
+        if (!s) return;
+        selectedSample = id;
+        input.value = s.text;
+        updateWordCount();
+        Array.prototype.forEach.call(samplesBox.children, function (c) {
+          c.classList.toggle("selected", c.dataset.id === id);
+        });
+      }
+      function updateWordCount() {
+        var w = (input.value.match(/[A-Za-z0-9''-]+/g) || []).length;
+        $("wordCount").textContent = w + (w === 1 ? " word" : " words");
+      }
+      input.addEventListener("input", function () {
+        selectedSample = null;
+        Array.prototype.forEach.call(samplesBox.children, function (c) { c.classList.remove("selected"); });
+        updateWordCount();
+      });
+      $("fileInput").addEventListener("change", function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) return;
+        var r = new FileReader();
+        r.onload = function () {
+          input.value = String(r.result || "");
+          selectedSample = null;
+          Array.prototype.forEach.call(samplesBox.children, function (c) { c.classList.remove("selected"); });
+          updateWordCount();
+        };
+        r.readAsText(f);
+      });
+
+      var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      function animateSteps(done) {
+        var steps = document.querySelectorAll("#pipeline .step");
+        steps.forEach(function (st) { st.classList.remove("active", "done"); });
+        if (reduced) { steps.forEach(function (st) { st.classList.add("done"); }); done(); return; }
+        var i = 0;
+        (function next() {
+          if (i > 0) { steps[i - 1].classList.remove("active"); steps[i - 1].classList.add("done"); }
+          if (i >= steps.length) { done(); return; }
+          steps[i].classList.add("active"); i++;
+          setTimeout(next, 170);
+        })();
+      }
+
+      function barClass(v) { return v >= 58 ? "" : (v >= 40 ? "mid" : "low"); }
+
+      function renderResult(res, sourceText) {
+        $("emptyState").style.display = "none";
+        var box = $("verdictBox"); box.classList.add("show");
+        var badge = $("verdictBadge");
+        if (res.verdict === "arch") { badge.className = "verdict-badge arch"; badge.textContent = "ARCHITECTURAL"; }
+        else if (res.verdict === "non") { badge.className = "verdict-badge non"; badge.textContent = "NON-ARCHITECTURAL"; }
+        else { badge.className = "verdict-badge review"; badge.textContent = "BORDERLINE — HUMAN REVIEW"; }
+        $("verdictWhy").innerHTML = "<strong>Why:</strong> " + esc(res.why);
+        $("confVal").textContent = res.fused;
+        requestAnimationFrame(function () { $("confFill").style.width = res.fused + "%"; });
+        $("confFill").style.background = res.verdict === "arch" ? "var(--teal)" : (res.verdict === "non" ? "var(--red)" : "var(--amber)");
+
+        var strands = [
+          { name: "Text strand", w: "weight 35%", score: res.textScore,
+            ev: res.textFound.length ? "Top matches: " + res.textFound.map(function (f) { return f.term + (f.count > 1 ? " ×" + f.count : ""); }).join(", ") : "No architecture vocabulary matched." },
+          { name: "Structure & diagrams", w: "weight 20%", score: res.structScore,
+            ev: res.structEvidence.length ? res.structEvidence.join(" · ") : "No headings, enumerations, or diagram references detected." },
+          { name: "Specification checklist", w: "weight 30%", score: res.checklistScore,
+            ev: res.metCount + " of " + res.checklist.length + " specification items met (details below)." },
+          { name: "Intent / commitment", w: "weight 15%", score: res.intentScore,
+            ev: res.intentFound.length ? "Signals: " + res.intentFound.map(function (f) { return "“" + f.term + "”" + (f.count > 1 ? " ×" + f.count : ""); }).join(", ") : "No commitment signals — nothing is decided, justified, or traded off." }
+        ];
+        $("strands").innerHTML = strands.map(function (s) {
+          return '<div><div class="strand-head"><span class="strand-name">' + s.name +
+            '<span class="w">' + s.w + '</span></span><span class="strand-score">' + s.score +
+            '</span></div><div class="bar"><div class="bar-fill ' + barClass(s.score) +
+            '" data-w="' + s.score + '"></div></div><div class="strand-ev">' + esc(s.ev) + "</div></div>";
+        }).join("");
+        requestAnimationFrame(function () {
+          document.querySelectorAll(".bar-fill").forEach(function (b) { b.style.width = b.dataset.w + "%"; });
+        });
+
+        $("checklist").innerHTML = res.checklist.map(function (c) {
+          return '<li><span class="ck ' + (c.met ? "met" : "miss") + '">' + (c.met ? "✓" : "–") +
+            '</span><span>' + esc(c.label) + '<span class="why">' + esc(c.why) + "</span></span></li>";
+        }).join("");
+
+        var pb = $("penaltyBox");
+        if (res.penalty > 0) {
+          pb.classList.add("show");
+          pb.innerHTML = "<strong>Close-negative penalty: −" + res.penalty + " points.</strong> API-reference signals found (" +
+            esc(res.apiEvidence.join(", ")) + ") — the signature of a document that lists how to <em>call</em> the system rather than how it is <em>designed</em>.";
+        } else { pb.classList.remove("show"); pb.innerHTML = ""; }
+
+        renderPreview(sourceText);
+      }
+
+      function renderPreview(text) {
+        // One pass over the raw text: longest phrases first, intent terms win ties.
+        var intentSet = {};
+        INTENT_TERMS.forEach(function (t) { intentSet[t[0]] = true; });
+        var phrases = [];
+        TEXT_TERMS.forEach(function (t) { phrases.push(t[0]); });
+        INTENT_TERMS.forEach(function (t) { phrases.push(t[0]); });
+        phrases = phrases.filter(function (p, i) { return phrases.indexOf(p) === i; });
+        phrases.sort(function (a, b) { return b.length - a.length; });
+        var alt = phrases.map(function (p) {
+          return p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/-/g, "[-\\s]");
+        }).join("|");
+        var re = new RegExp("\\b(" + alt + ")\\b", "gi");
+        var out = "", last = 0, m;
+        while ((m = re.exec(text)) !== null) {
+          out += esc(text.slice(last, m.index));
+          var key = m[1].toLowerCase().replace(/\s+/g, " ");
+          out += '<mark class="' + (intentSet[key] ? "intent" : "") + '">' + esc(m[1]) + "</mark>";
+          last = m.index + m[1].length;
+        }
+        out += esc(text.slice(last));
+        $("preview").innerHTML = out;
+        $("previewPanel").style.display = "block";
+      }
+
+      $("classifyBtn").addEventListener("click", function () {
+        var text = input.value.trim();
+        if (!text) {
+          $("emptyState").style.display = "block";
+          $("emptyState").innerHTML = "<p><strong>Nothing to classify.</strong></p><p>Paste some document text, load a .txt or .md file, or pick one of the demo documents above.</p>";
+          return;
+        }
+        animateSteps(function () { renderResult(classify(text), text); });
+      });
+
+      /* ================= Batch demo ================= */
+      $("batchBtn").addEventListener("click", function () {
+        var rows = "", correct = 0;
+        SAMPLES.forEach(function (s) {
+          var r = classify(s.text);
+          var ok = (r.verdict === s.expected);
+          if (ok) correct++;
+          function pill(v) {
+            return v === "arch" ? '<span class="pill arch">Architectural</span>'
+              : v === "non" ? '<span class="pill non">Non-architectural</span>'
+              : '<span class="pill review">Human review</span>';
+          }
+          rows += "<tr><td><strong>" + esc(s.name) + '</strong></td><td class="score">' + r.fused +
+            "</td><td>" + pill(r.verdict) + "</td><td>" + pill(s.expected) +
+            '</td><td class="match ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ match" : "✗ differs") + "</td></tr>";
+        });
+        $("batchOut").innerHTML =
+          '<div style="overflow-x:auto"><table class="batch-table"><thead><tr><th>Document</th><th>Score</th><th>Classifier says</th><th>Written as</th><th></th></tr></thead><tbody>' +
+          rows + "</tbody></table></div>" +
+          '<p class="batch-summary">The classifier matched the intended label on <strong>' + correct + " of " + SAMPLES.length +
+          " demo documents</strong>. These five documents were written to exercise the pipeline — including the API reference, the close negative that fools keyword-only classifiers — so treat this as a smoke test of the design, not an accuracy measurement.</p>";
+      });
+
+      loadSample("kafka");
+    })();
+    </script>
+  </body>
+</html>
